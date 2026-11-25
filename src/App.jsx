@@ -6,7 +6,7 @@ import { db } from "./firebase";
 const OPTIONS = [
   { key: "opt1", label: "Oui, sans hésiter" },
   { key: "opt2", label: "Non, ma vie privée n'a pas de prix" },
-  { key: "opt3", label: "Oui, mais avec des limites strictes" },
+  { key: "opt3", label: "Oui, avec des limites strictes" },
 ];
 
 export default function App() {
@@ -15,14 +15,10 @@ export default function App() {
     localStorage.getItem("a_vote_he") === "true"
   );
 
-  // Détecte si l'utilisateur vient du QR code (?mode=vote)
   const isVoteMode =
     new URLSearchParams(window.location.search).get("mode") === "vote";
-
-  // Lien automatique encodé dans le QR code
   const voteUrl = `${window.location.origin}${window.location.pathname}?mode=vote`;
 
-  // Écoute les votes en temps réel depuis Firebase
   useEffect(() => {
     const votesRef = ref(db, "votes");
     return onValue(votesRef, (snapshot) => {
@@ -53,20 +49,22 @@ export default function App() {
 
   const totalVotes = votes.opt1 + votes.opt2 + votes.opt3;
 
-  // --- VUE TÉLÉPHONE (Écran affiché après le scan du QR Code) ---
+  // --- VUE TÉLÉPHONE ---
   if (isVoteMode) {
     return (
-      <div style={styles.container}>
-        <h2 style={styles.title}>
+      <div style={styles.phoneContainer}>
+        <h2 style={{ color: "#ffffff", fontSize: "1.25rem", marginBottom: "24px", lineHeight: 1.4 }}>
           Accepteriez-vous un suivi numérique de votre productivité pour +20 % de salaire ?
         </h2>
         {hasVoted ? (
           <div style={styles.card}>
-            <h3 style={{ color: "#f5c542" }}>Vote enregistré !</h3>
-            <p>Regardez l'écran du projecteur pour voir les résultats en direct.</p>
+            <h3 style={{ color: "#f5c542", marginTop: 0 }}>Vote enregistré !</h3>
+            <p style={{ color: "#e2e8f0", marginBottom: 0 }}>
+              Regardez l'écran de présentation pour voir les résultats en direct.
+            </p>
           </div>
         ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: "15px", width: "100%", maxWidth: "400px" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "12px", width: "100%", maxWidth: "380px" }}>
             {OPTIONS.map((opt) => (
               <button key={opt.key} onClick={() => handleVote(opt.key)} style={styles.button}>
                 {opt.label}
@@ -78,85 +76,87 @@ export default function App() {
     );
   }
 
-  // --- VUE PROJECTEUR (Écran de ta présentation) ---
+  // --- VUE PROJECTEUR COMPACTE (POUR GAMMA) ---
   return (
-    <div style={styles.container}>
-      <h1 style={styles.title}>
-        Accepteriez-vous un suivi numérique de votre productivité pour +20 % de salaire ?
-      </h1>
+    <div style={styles.embedContainer}>
+      <button onClick={resetVotes} style={styles.resetBtn} title="Remettre à zéro">
+        ↺ Reset
+      </button>
 
-      <div style={styles.layout}>
-        {/* Zone QR Code */}
-        <div style={styles.qrBox}>
-          <QRCodeSVG value={voteUrl} size={220} bgColor="#ffffff" fgColor="#0f172a" />
-          <p style={{ color: "#0f172a", fontWeight: "bold", marginTop: "10px", marginBottom: 0 }}>
-            Scannez pour voter ({totalVotes} votes)
-          </p>
-        </div>
-
-        {/* Zone Graphique en direct */}
-        <div style={styles.resultsBox}>
-          {OPTIONS.map((opt) => {
-            const count = votes[opt.key] || 0;
-            const percent = totalVotes > 0 ? Math.round((count / totalVotes) * 100) : 0;
-            return (
-              <div key={opt.key} style={{ marginBottom: "24px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px", fontSize: "1.1rem" }}>
-                  <span>{opt.label}</span>
-                  <strong style={{ color: "#f5c542" }}>{percent}% ({count})</strong>
-                </div>
-                <div style={styles.barBg}>
-                  <div style={{ ...styles.barFill, width: `${percent}%` }} />
-                </div>
-              </div>
-            );
-          })}
-        </div>
+      {/* QR Code */}
+      <div style={styles.qrBox}>
+        <QRCodeSVG value={voteUrl} size={145} bgColor="#ffffff" fgColor="#0f172a" />
+        <p style={{ color: "#0f172a", fontWeight: "700", fontSize: "0.85rem", margin: "8px 0 0 0" }}>
+          Scannez ({totalVotes} {totalVotes > 1 ? "votes" : "vote"})
+        </p>
       </div>
 
-      {/* Bouton discret pour remettre à zéro après tes tests */}
-      <button onClick={resetVotes} style={styles.resetBtn}>
-        Réinitialiser les votes
-      </button>
+      {/* Barres de résultats */}
+      <div style={styles.resultsBox}>
+        {OPTIONS.map((opt) => {
+          const count = votes[opt.key] || 0;
+          const percent = totalVotes > 0 ? Math.round((count / totalVotes) * 100) : 0;
+          return (
+            <div key={opt.key} style={{ marginBottom: "14px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "5px", fontSize: "0.92rem", color: "#ffffff" }}>
+                <span>{opt.label}</span>
+                <strong style={{ color: "#f5c542", marginLeft: "8px" }}>{percent}% ({count})</strong>
+              </div>
+              <div style={styles.barBg}>
+                <div style={{ ...styles.barFill, width: `${percent}%` }} />
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
 
 const styles = {
-  container: {
+  embedContainer: {
+    position: "relative",
     minHeight: "100vh",
-    backgroundColor: "#0b0f19",
+    boxSizing: "border-box",
+    backgroundColor: "#0f172a",
     color: "#ffffff",
-    fontFamily: "system-ui, sans-serif",
+    fontFamily: "system-ui, -apple-system, sans-serif",
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
     justifyContent: "center",
-    padding: "30px",
-    textAlign: "center",
+    gap: "20px",
+    padding: "20px 24px",
   },
-  title: { maxWidth: "800px", marginBottom: "40px", lineHeight: 1.3 },
-  layout: {
+  phoneContainer: {
+    minHeight: "100vh",
+    boxSizing: "border-box",
+    backgroundColor: "#0f172a",
+    color: "#ffffff",
+    fontFamily: "system-ui, -apple-system, sans-serif",
     display: "flex",
-    flexWrap: "wrap",
-    gap: "50px",
+    flexDirection: "column",
     alignItems: "center",
     justifyContent: "center",
-    width: "100%",
-    maxWidth: "1000px",
+    padding: "24px",
+    textAlign: "center",
   },
   qrBox: {
     backgroundColor: "#ffffff",
-    padding: "20px",
-    borderRadius: "16px",
-    boxShadow: "0 10px 30px rgba(0,0,0,0.4)",
+    padding: "12px",
+    borderRadius: "14px",
+    textAlign: "center",
+    boxShadow: "0 8px 20px rgba(0,0,0,0.35)",
   },
-  resultsBox: { flex: 1, minWidth: "300px", textAlign: "left" },
+  resultsBox: {
+    width: "100%",
+    maxWidth: "360px",
+  },
   barBg: {
     width: "100%",
-    height: "24px",
+    height: "14px",
     backgroundColor: "#1e293b",
-    borderRadius: "12px",
+    borderRadius: "999px",
     overflow: "hidden",
   },
   barFill: {
@@ -165,9 +165,9 @@ const styles = {
     transition: "width 0.4s ease-out",
   },
   button: {
-    padding: "18px",
-    fontSize: "1.05rem",
-    fontWeight: "bold",
+    padding: "16px",
+    fontSize: "1rem",
+    fontWeight: "600",
     borderRadius: "12px",
     border: "2px solid #f5c542",
     backgroundColor: "#1e293b",
@@ -176,17 +176,20 @@ const styles = {
   },
   card: {
     backgroundColor: "#1e293b",
-    padding: "30px",
-    borderRadius: "16px",
+    padding: "24px",
+    borderRadius: "14px",
     border: "1px solid #f5c542",
   },
   resetBtn: {
-    marginTop: "50px",
-    background: "transparent",
-    color: "#64748b",
-    border: "1px solid #334155",
-    padding: "8px 16px",
-    borderRadius: "8px",
+    position: "absolute",
+    top: "10px",
+    right: "10px",
+    background: "rgba(255,255,255,0.08)",
+    color: "#94a3b8",
+    border: "none",
+    padding: "4px 10px",
+    borderRadius: "6px",
+    fontSize: "0.75rem",
     cursor: "pointer",
   },
 };
